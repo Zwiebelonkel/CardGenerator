@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Darkest Cards JSON Generator</title>
+
+  <style>
+    :root {
+      --bg: #07080b;
+      --panel: #151923;
+      --panel2: #202638;
+      --text: #f5f7ff;
+      --muted: #9ca7bf;
+      --border: #30384d;
+      --green: #42D94A;
+      --red: #ff3b3b;
+      --blue: #4aa3ff;
+      --yellow: #ffe25c;
+      --rarity-color: #42D94A;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(66, 217, 74, .15), transparent 35rem),
+        radial-gradient(circle at top right, rgba(176, 77, 255, .18), transparent 35rem),
+        #07080b;
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      padding: 24px;
+    }
+
+    .app {
+      max-width: 1500px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(2rem, 5vw, 4rem);
+      letter-spacing: -0.06em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 430px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01)), var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 20px 70px rgba(0,0,0,.45);
+    }
+
+    .panel-header {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,.03);
+    }
+
+    .panel-header h2 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+
+    .panel-body {
+      padding: 18px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: .84rem;
+      margin-bottom: 7px;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #090b11;
+      color: var(--text);
+      padding: 11px 12px;
+      font: inherit;
+      outline: none;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 90px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: .86rem;
+      line-height: 1.45;
+    }
+
+    input:focus,
+    textarea:focus {
+      border-color: var(--rarity-color);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--rarity-color) 18%, transparent);
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+    }
+
+    button {
+      border: 1px solid var(--border);
+      background: var(--panel2);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 13px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    button:hover {
+      filter: brightness(1.13);
+    }
+
+    .primary {
+      background: linear-gradient(135deg, #39ff62, #4aa3ff);
+      border: none;
+      color: #041006;
+    }
+
+    .danger {
+      background: rgba(255,59,59,.15);
+      border-color: rgba(255,59,59,.45);
+    }
+
+    .selector-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .select-card {
+      border: 2px solid var(--border);
+      background: rgba(255,255,255,.035);
+      border-radius: 14px;
+      padding: 11px;
+      text-align: left;
+      min-height: 58px;
+    }
+
+    .select-card strong {
+      display: block;
+      font-size: .94rem;
+    }
+
+    .select-card span {
+      display: block;
+      color: var(--muted);
+      font-size: .76rem;
+      margin-top: 3px;
+    }
+
+    .select-card.active {
+      border-color: var(--item-color);
+      box-shadow: 0 0 18px color-mix(in srgb, var(--item-color) 55%, transparent);
+      background: color-mix(in srgb, var(--item-color) 16%, transparent);
+    }
+
+    .effects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .effect-btn {
+      border: 2px solid var(--border);
+      background: rgba(255,255,255,.035);
+      border-radius: 14px;
+      padding: 11px;
+      text-align: left;
+      min-height: 82px;
+    }
+
+    .effect-btn strong {
+      display: block;
+      font-size: .92rem;
+    }
+
+    .effect-btn small {
+      display: block;
+      color: var(--muted);
+      font-size: .72rem;
+      margin-top: 4px;
+      line-height: 1.3;
+    }
+
+    .effect-btn.active {
+      border-color: var(--item-color);
+      box-shadow: 0 0 18px color-mix(in srgb, var(--item-color) 55%, transparent);
+      background: color-mix(in srgb, var(--item-color) 16%, transparent);
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .status {
+      margin-top: 12px;
+      min-height: 22px;
+      color: var(--muted);
+    }
+
+    .status.ok {
+      color: #42D94A;
+    }
+
+    .status.bad {
+      color: #ff7777;
+    }
+
+    .preview-wrap {
+      display: grid;
+      place-items: center;
+      padding: 18px;
+    }
+
+    .card {
+      width: 350px;
+      max-width: 100%;
+      aspect-ratio: .68 / 1;
+      position: relative;
+      overflow: hidden;
+      border-radius: 28px;
+      border: 5px solid var(--rarity-color);
+      background:
+        repeating-linear-gradient(135deg, rgba(255,255,255,.035) 0 8px, transparent 8px 20px),
+        #233327;
+      box-shadow:
+        0 0 0 2px rgba(255,255,255,.12) inset,
+        0 0 28px var(--rarity-color),
+        0 25px 80px rgba(0,0,0,.7);
+      image-rendering: pixelated;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(rgba(255,255,255,.05) 50%, rgba(0,0,0,.12) 50%);
+      background-size: 100% 4px;
+      pointer-events: none;
+      opacity: .7;
+    }
+
+    .card-title {
+      height: 70px;
+      display: grid;
+      place-items: center;
+      border-bottom: 4px solid var(--rarity-color);
+      font-size: 2rem;
+      font-weight: 900;
+      text-align: center;
+      text-shadow: 2px 2px 0 #000;
+      padding: 0 14px;
+    }
+
+    .image-box {
+      width: 72%;
+      aspect-ratio: 1.8 / 1;
+      margin: 22px auto 18px;
+      border: 3px solid var(--rarity-color);
+      background: rgba(0,0,0,.28);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    .image-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+      image-rendering: pixelated;
+    }
+
+    .placeholder {
+      color: rgba(255,255,255,.38);
+      font-size: .8rem;
+      text-align: center;
+    }
+
+    .desc-box {
+      border-top: 4px solid var(--rarity-color);
+      border-bottom: 4px solid var(--rarity-color);
+      min-height: 220px;
+      padding: 16px 22px;
+    }
+
+    .desc-title {
+      color: var(--yellow);
+      font-size: 1.35rem;
+      font-weight: 900;
+      margin-bottom: 14px;
+      text-shadow: 2px 2px 0 #000;
+    }
+
+    .desc-text,
+    .effects-text {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: .8rem;
+      line-height: 1.25;
+      text-shadow: 1px 1px 0 #000;
+      overflow-wrap: anywhere;
+    }
+
+    .effects-text {
+      margin-top: 22px;
+      color: #72ffad;
+    }
+
+    .stats {
+      position: absolute;
+      left: 22px;
+      right: 22px;
+      bottom: 38px;
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+    }
+
+    .stat {
+      text-align: center;
+      font-weight: 900;
+    }
+
+    .stat span {
+      display: block;
+      font-size: 1rem;
+      margin-bottom: -3px;
+      text-shadow: 2px 2px 0 #000;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 3.6rem;
+      line-height: .85;
+      text-shadow: 3px 3px 0 #000;
+    }
+
+    .attack {
+      color: var(--red);
+    }
+
+    .defense {
+      color: var(--blue);
+    }
+
+    .rarity-band {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-top: 4px solid var(--rarity-color);
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      text-shadow: 2px 2px 0 #000;
+      background: rgba(0,0,0,.2);
+    }
+
+    .output-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .output {
+      min-height: 320px;
+      white-space: pre;
+    }
+
+    .section-space {
+      margin-top: 18px;
+    }
+
+    @media (max-width: 1050px) {
+      .layout,
+      .output-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <h1>Darkest Cards JSON Tool</h1>
+    <div class="subtitle">
+      Karte ausfüllen, Rarity und Effects anklicken, Preview prüfen und den fertigen JSON-Block direkt in deinen Code kopieren.
+    </div>
+
+    <main class="layout">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Neue Karte</h2>
+        </div>
+
+        <div class="panel-body">
+          <div class="form-grid">
+            <div>
+              <label>Name</label>
+              <input id="name" value="Wanderer" />
+            </div>
+
+            <div>
+              <label>ID</label>
+              <div class="row">
+                <input id="id" value="wanderer" />
+                <button id="autoIdBtn" type="button">Auto</button>
+              </div>
+            </div>
+
+            <div>
+              <label>Attack</label>
+              <input id="attack" type="number" value="3" min="0" />
+            </div>
+
+            <div>
+              <label>Defense</label>
+              <input id="defense" type="number" value="1" min="0" />
+            </div>
+
+            <div class="full">
+              <label>Image-Pfad</label>
+              <input id="image" value="res://assets/cards/images/wanderer.png" />
+            </div>
+
+            <div class="full">
+              <label>Description</label>
+              <textarea id="description">Crawling in the woods for humans. He likes them.</textarea>
+            </div>
+          </div>
+
+          <div class="section-space">
+            <label>Rarity wählen</label>
+            <div id="rarityButtons" class="selector-grid"></div>
+          </div>
+
+          <div class="section-space">
+            <label>Effects wählen</label>
+            <div id="effectButtons" class="effects-grid"></div>
+          </div>
+
+          <div class="section-space">
+            <label>Bestehendes cards.json optional einfügen</label>
+            <textarea id="existingJson" placeholder='[
+  {
+    "id": "harald",
+    "name": "Harald",
+    "attack": 8,
+    "defense": 10,
+    "rarity": "epic",
+    "description": "...",
+    "image": "res://assets/cards/images/harald.png"
+  }
+]'></textarea>
+          </div>
+
+          <div class="buttons">
+            <button class="primary" id="generateBtn" type="button">JSON generieren</button>
+            <button id="copyBlockBtn" type="button">Kartenblock kopieren</button>
+            <button id="copyFullBtn" type="button">Komplettes JSON kopieren</button>
+            <button class="danger" id="resetBtn" type="button">Reset</button>
+          </div>
+
+          <div id="status" class="status"></div>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <div class="panel-header">
+          <h2>Preview</h2>
+        </div>
+
+        <div class="preview-wrap">
+          <article class="card" id="cardPreview">
+            <div class="card-title" id="previewName">Wanderer</div>
+
+            <div class="image-box">
+              <img id="previewImage" alt="Preview" />
+              <div class="placeholder" id="imagePlaceholder">Preview Image<br>optional upload</div>
+            </div>
+
+            <div class="desc-box">
+              <div class="desc-title">Description</div>
+              <div class="desc-text" id="previewDescription">
+                Crawling in the woods for humans. He likes them.
+              </div>
+              <div class="effects-text" id="previewEffects">
+                Effects: -
+              </div>
+            </div>
+
+            <div class="stats">
+              <div class="stat attack">
+                <span>Attack</span>
+                <strong id="previewAttack">3</strong>
+              </div>
+
+              <div class="stat defense">
+                <span>Defense</span>
+                <strong id="previewDefense">1</strong>
+              </div>
+            </div>
+
+            <div class="rarity-band" id="previewRarity">UNCOMMON</div>
+          </article>
+        </div>
+
+        <div class="panel-body">
+          <label>Preview-Bild hochladen</label>
+          <input id="imageUpload" type="file" accept="image/*" />
+        </div>
+      </aside>
+
+      <section class="panel full" style="grid-column: 1 / -1;">
+        <div class="panel-header">
+          <h2>Output</h2>
+        </div>
+
+        <div class="panel-body">
+          <div class="output-grid">
+            <div>
+              <label>Nur neuer Kartenblock</label>
+              <textarea id="singleOutput" class="output" readonly></textarea>
+            </div>
+
+            <div>
+              <label>Komplettes cards.json</label>
+              <textarea id="fullOutput" class="output" readonly></textarea>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const rarities = [
+      { id: "common", name: "Common", color: "#8C8C8C", drop_weight: 60 },
+      { id: "uncommon", name: "Uncommon", color: "#42D94A", drop_weight: 25 },
+      { id: "rare", name: "Rare", color: "#3D7DFF", drop_weight: 9 },
+      { id: "epic", name: "Epic", color: "#B04DFF", drop_weight: 4 },
+      { id: "legendary", name: "Legendary", color: "#FFC233", drop_weight: 1.5 },
+      { id: "mythic", name: "Mythic", color: "#37207A", drop_weight: 0.4 },
+      { id: "exotic", name: "Exotic", color: "#FF2222", drop_weight: 0.1 }
+    ];
+
+    const effects = [
+      {
+        type: "armor",
+        name: "Armor 25%",
+        rarity: "common",
+        output: { type: "armor", value: 0.25 },
+        description: "Reduziert Schaden um 25 %."
+      },
+      {
+        type: "armor_50",
+        name: "Armor 50%",
+        rarity: "rare",
+        output: { type: "armor", value: 0.5 },
+        description: "Reduziert Schaden um 50 %."
+      },
+      {
+        type: "armor_75",
+        name: "Armor 75%",
+        rarity: "legendary",
+        output: { type: "armor", value: 0.75 },
+        description: "Reduziert Schaden um 75 %."
+      },
+      {
+        type: "regeneration",
+        name: "Regeneration",
+        rarity: "common",
+        output: { type: "regeneration", value: 3 },
+        description: "Heilt sich jede Runde."
+      },
+      {
+        type: "poison",
+        name: "Poison",
+        rarity: "common",
+        output: { type: "poison", damage: 3, turns: 3 },
+        description: "Schaden über mehrere Runden."
+      },
+      {
+        type: "lifesteal",
+        name: "Lifesteal",
+        rarity: "rare",
+        output: { type: "lifesteal", percent: 0.2 },
+        description: "Heilt sich durch verursachten Schaden."
+      },
+      {
+        type: "thorns",
+        name: "Thorns",
+        rarity: "rare",
+        output: { type: "thorns", percent: 0.25 },
+        description: "Reflektiert Schaden."
+      },
+      {
+        type: "cleave",
+        name: "Cleave",
+        rarity: "rare",
+        output: { type: "cleave", side_damage: 0.5 },
+        description: "Trifft benachbarte Karten."
+      },
+      {
+        type: "double_strike",
+        name: "Double Strike",
+        rarity: "epic",
+        output: { type: "double_strike" },
+        description: "Greift zweimal an."
+      },
+      {
+        type: "stun",
+        name: "Stun",
+        rarity: "epic",
+        output: { type: "stun", chance: 1.0 },
+        description: "Ziel setzt nächsten Zug aus."
+      },
+      {
+        type: "chain_attack",
+        name: "Chain Attack",
+        rarity: "epic",
+        output: { type: "chain_attack" },
+        description: "Nach Kill weiteres Ziel angreifen."
+      },
+      {
+        type: "triple_strike",
+        name: "Triple Strike",
+        rarity: "legendary",
+        output: { type: "triple_strike", hits: 3 },
+        description: "Greift dreimal an."
+      },
+      {
+        type: "last_stand",
+        name: "Last Stand",
+        rarity: "legendary",
+        output: { type: "last_stand" },
+        description: "Überlebt einmal mit 1 HP."
+      },
+      {
+        type: "execute",
+        name: "Execute",
+        rarity: "legendary",
+        output: { type: "execute", threshold: 0.25 },
+        description: "Zerstört Gegner unter HP-Grenze."
+      },
+      {
+        type: "shield_first_hit",
+        name: "Shield First Hit",
+        rarity: "rare",
+        output: { type: "shield_first_hit" },
+        description: "Erster Treffer macht keinen Schaden."
+      },
+      {
+        type: "swarm_power",
+        name: "Swarm Power",
+        rarity: "exotic",
+        output: { type: "swarm_power" },
+        description: "Skaliert mit gleichen Karten."
+      },
+      {
+        type: "grave_return",
+        name: "Grave Return",
+        rarity: "exotic",
+        output: { type: "grave_return" },
+        description: "Wird einmal wiederbelebt."
+      },
+      {
+        type: "deck_burn",
+        name: "Deck Burn",
+        rarity: "exotic",
+        output: { type: "deck_burn", amount: 1 },
+        description: "Entfernt Karten aus Gegnerdeck."
+      },
+      {
+        type: "draw_on_kill",
+        name: "Draw On Kill",
+        rarity: "rare",
+        output: { type: "draw_on_kill" },
+        description: "Zieht Karte nach Kill."
+      },
+      {
+        type: "curse",
+        name: "Curse",
+        rarity: "rare",
+        output: { type: "curse", value: 2 },
+        description: "Senkt Angriff des Gegners."
+      },
+      {
+        type: "swap_stats",
+        name: "Swap Stats",
+        rarity: "epic",
+        output: { type: "swap_stats" },
+        description: "Tauscht Angriff und Defense."
+      },
+      {
+        type: "random_damage",
+        name: "Random Damage",
+        rarity: "common",
+        output: { type: "random_damage", min: 0.75, max: 1.25 },
+        description: "Schaden variiert zufällig."
+      },
+      {
+        type: "bodyguard",
+        name: "Bodyguard",
+        rarity: "rare",
+        output: { type: "bodyguard", percent: 0.5 },
+        description: "Übernimmt Schaden von Nachbarn."
+      },
+      {
+        type: "neighbor_heal",
+        name: "Neighbor Heal",
+        rarity: "common",
+        output: { type: "neighbor_heal", value: 2 },
+        description: "Heilt benachbarte Karten."
+      }
+    ];
+
+    let selectedRarity = "uncommon";
+    let selectedEffects = [];
+
+    const $ = (id) => document.getElementById(id);
+
+    function rarityColor(rarityId) {
+      const rarity = rarities.find(r => r.id === rarityId);
+      return rarity ? rarity.color : "#42D94A";
+    }
+
+    function rarityName(rarityId) {
+      const rarity = rarities.find(r => r.id === rarityId);
+      return rarity ? rarity.name : "Uncommon";
+    }
+
+    function effectColor(effect) {
+      return rarityColor(effect.rarity);
+    }
+
+    function slugify(text) {
+      return text
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/ä/g, "ae")
+        .replace(/ö/g, "oe")
+        .replace(/ü/g, "ue")
+        .replace(/ß/g, "ss")
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+    }
+
+    function deepClone(value) {
+      return JSON.parse(JSON.stringify(value));
+    }
+
+    function setStatus(text, type = "") {
+      $("status").textContent = text;
+      $("status").className = "status " + type;
+    }
+
+    function renderRarityButtons() {
+      const container = $("rarityButtons");
+      container.innerHTML = "";
+
+      rarities.forEach(rarity => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "select-card";
+        btn.style.setProperty("--item-color", rarity.color);
+
+        if (rarity.id === selectedRarity) {
+          btn.classList.add("active");
+        }
+
+        btn.innerHTML = `
+          <strong>${rarity.name}</strong>
+          <span>Drop Weight: ${rarity.drop_weight}</span>
+        `;
+
+        btn.addEventListener("click", () => {
+          selectedRarity = rarity.id;
+          renderRarityButtons();
+          updatePreview();
+          generateJson(false);
+        });
+
+        container.appendChild(btn);
+      });
+    }
+
+    function renderEffectButtons() {
+      const container = $("effectButtons");
+      container.innerHTML = "";
+
+      effects.forEach(effect => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "effect-btn";
+        btn.style.setProperty("--item-color", effectColor(effect));
+
+        const active = selectedEffects.includes(effect.type);
+
+        if (active) {
+          btn.classList.add("active");
+        }
+
+        btn.innerHTML = `
+          <strong>${effect.name}</strong>
+          <small>${effect.rarity.toUpperCase()}</small>
+          <small>${effect.description}</small>
+        `;
+
+        btn.addEventListener("click", () => {
+          if (selectedEffects.includes(effect.type)) {
+            selectedEffects = selectedEffects.filter(type => type !== effect.type);
+          } else {
+            selectedEffects.push(effect.type);
+          }
+
+          renderEffectButtons();
+          updatePreview();
+          generateJson(false);
+        });
+
+        container.appendChild(btn);
+      });
+    }
+
+    function getSelectedEffectOutputs() {
+      return selectedEffects
+        .map(type => effects.find(effect => effect.type === type))
+        .filter(Boolean)
+        .map(effect => deepClone(effect.output));
+    }
+
+    function getSelectedEffectNames() {
+      return selectedEffects
+        .map(type => effects.find(effect => effect.type === type))
+        .filter(Boolean)
+        .map(effect => effect.name);
+    }
+
+    function getCardObject() {
+      const card = {
+        id: $("id").value.trim(),
+        name: $("name").value.trim(),
+        attack: Number($("attack").value),
+        defense: Number($("defense").value),
+        rarity: selectedRarity,
+        description: $("description").value.trim(),
+        image: $("image").value.trim()
+      };
+
+      const selectedEffectOutputs = getSelectedEffectOutputs();
+
+      if (selectedEffectOutputs.length > 0) {
+        card.effects = selectedEffectOutputs;
+      }
+
+      return card;
+    }
+
+    function validateCard(card) {
+      const errors = [];
+
+      if (!card.id) errors.push("ID fehlt.");
+      if (!card.name) errors.push("Name fehlt.");
+      if (!Number.isFinite(card.attack)) errors.push("Attack muss eine Zahl sein.");
+      if (!Number.isFinite(card.defense)) errors.push("Defense muss eine Zahl sein.");
+      if (!card.description) errors.push("Description fehlt.");
+      if (!card.image) errors.push("Image-Pfad fehlt.");
+
+      return errors;
+    }
+
+    function parseExistingJson() {
+      const raw = $("existingJson").value.trim();
+
+      if (!raw) {
+        return [];
+      }
+
+      const parsed = JSON.parse(raw);
+
+      if (!Array.isArray(parsed)) {
+        throw new Error("Das bestehende cards.json muss ein Array sein.");
+      }
+
+      return parsed;
+    }
+
+    function generateJson(showSuccess = true) {
+      const card = getCardObject();
+      const errors = validateCard(card);
+
+      if (errors.length > 0) {
+        setStatus(errors.join(" "), "bad");
+        return;
+      }
+
+      $("singleOutput").value = JSON.stringify(card, null, 2);
+
+      try {
+        const cards = parseExistingJson();
+        const index = cards.findIndex(existingCard => existingCard.id === card.id);
+
+        if (index >= 0) {
+          cards[index] = card;
+          $("fullOutput").value = JSON.stringify(cards, null, 2);
+
+          if (showSuccess) {
+            setStatus("Karte generiert. ID existierte schon und wurde im kompletten JSON ersetzt.", "ok");
+          }
+        } else {
+          cards.push(card);
+          $("fullOutput").value = JSON.stringify(cards, null, 2);
+
+          if (showSuccess) {
+            setStatus("Karte generiert und ans komplette JSON angehängt.", "ok");
+          }
+        }
+      } catch (error) {
+        $("fullOutput").value = "";
+        setStatus(error.message, "bad");
+      }
+    }
+
+    function updatePreview() {
+      const card = getCardObject();
+      const color = rarityColor(selectedRarity);
+      const effectsText = getSelectedEffectNames();
+
+      document.documentElement.style.setProperty("--rarity-color", color);
+
+      $("previewName").textContent = card.name || "Unnamed";
+      $("previewAttack").textContent = Number.isFinite(card.attack) ? card.attack : "0";
+      $("previewDefense").textContent = Number.isFinite(card.defense) ? card.defense : "0";
+      $("previewDescription").textContent = card.description || "No description.";
+      $("previewRarity").textContent = rarityName(selectedRarity).toUpperCase();
+      $("previewEffects").textContent = effectsText.length > 0
+        ? "Effects: " + effectsText.join(", ")
+        : "Effects: -";
+    }
+
+    async function copyText(text, successMessage) {
+      if (!text.trim()) {
+        setStatus("Erst JSON generieren.", "bad");
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(text);
+        setStatus(successMessage, "ok");
+      } catch {
+        const temp = document.createElement("textarea");
+        temp.value = text;
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand("copy");
+        temp.remove();
+        setStatus(successMessage, "ok");
+      }
+    }
+
+    function resetForm() {
+      $("name").value = "";
+      $("id").value = "";
+      $("attack").value = "1";
+      $("defense").value = "1";
+      $("image").value = "res://assets/cards/images/";
+      $("description").value = "";
+      $("existingJson").value = "";
+      $("singleOutput").value = "";
+      $("fullOutput").value = "";
+
+      selectedRarity = "common";
+      selectedEffects = [];
+
+      renderRarityButtons();
+      renderEffectButtons();
+      updatePreview();
+      setStatus("Formular zurückgesetzt.", "ok");
+    }
+
+    function setupEvents() {
+      ["name", "id", "attack", "defense", "image", "description"].forEach(id => {
+        $(id).addEventListener("input", () => {
+          updatePreview();
+          generateJson(false);
+        });
+      });
+
+      $("name").addEventListener("input", () => {
+        if (!$("id").dataset.touched) {
+          $("id").value = slugify($("name").value);
+        }
+      });
+
+      $("id").addEventListener("input", () => {
+        $("id").dataset.touched = "true";
+      });
+
+      $("autoIdBtn").addEventListener("click", () => {
+        $("id").value = slugify($("name").value);
+        $("id").dataset.touched = "true";
+        updatePreview();
+        generateJson(false);
+      });
+
+      $("generateBtn").addEventListener("click", () => generateJson(true));
+
+      $("copyBlockBtn").addEventListener("click", () => {
+        copyText($("singleOutput").value, "Kartenblock wurde kopiert.");
+      });
+
+      $("copyFullBtn").addEventListener("click", () => {
+        copyText($("fullOutput").value, "Komplettes JSON wurde kopiert.");
+      });
+
+      $("resetBtn").addEventListener("click", resetForm);
+
+      $("existingJson").addEventListener("input", () => {
+        generateJson(false);
+      });
+
+      $("imageUpload").addEventListener("change", event => {
+        const file = event.target.files[0];
+
+        if (!file) return;
+
+        const reader = new FileReader();
+
+        reader.onload = () => {
+          $("previewImage").src = reader.result;
+          $("previewImage").style.display = "block";
+          $("imagePlaceholder").style.display = "none";
+        };
+
+        reader.readAsDataURL(file);
+      });
+    }
+
+    renderRarityButtons();
+    renderEffectButtons();
+    setupEvents();
+    updatePreview();
+    generateJson(false);
+  </script>
+</body>
+</html>
