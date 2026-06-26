@@ -61,6 +61,14 @@
     function setStatus(text, type = '') { $('status').textContent = text; $('status').className = `status ${type}`; }
     function imageUrl(card, download = false) { return `${API_BASE_URL}${card.image_url}?admin_token=${encodeURIComponent($('token').value)}${download ? '&download=1' : ''}`; }
     function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+    function parseJsonResponse(text) {
+      try {
+        return JSON.parse(text);
+      } catch {
+        const preview = text.trim().slice(0, 120) || 'Leere Antwort';
+        throw new Error(`Server hat kein JSON zurückgegeben. Bitte /admin direkt auf dem API-Server öffnen. Antwort: ${preview}`);
+      }
+    }
     function parseCard(row) { try { return JSON.parse(row.raw_json); } catch { return {}; } }
     function renderCard(row) {
       const card = parseCard(row);
@@ -88,8 +96,10 @@
       const params = new URLSearchParams({ limit: '500' });
       if ($('statusFilter').value) params.set('status', $('statusFilter').value);
       const response = await fetch(`${API_BASE_URL}/api/cards?${params}`, { headers: { 'X-Admin-Token': $('token').value } });
-      const data = await response.json();
+      const text = await response.text();
+      const data = parseJsonResponse(text);
       if (!response.ok) throw new Error(data.error || 'Karten konnten nicht geladen werden.');
+      if (!Array.isArray(data.cards)) throw new Error('Server-Antwort enthält keine Kartenliste.');
       $('cards').innerHTML = data.cards.map(renderCard).join('');
       setStatus(`${data.cards.length} Karten geladen.`, 'ok');
     }
