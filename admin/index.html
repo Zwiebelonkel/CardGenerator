@@ -60,7 +60,7 @@
     const rarityColors = { common:'#8C8C8C', uncommon:'#42D94A', rare:'#3D7DFF', epic:'#B04DFF', legendary:'#FFC233', mythic:'#37207A', exotic:'#FF2222' };
     const $ = (id) => document.getElementById(id);
     function setStatus(text, type = '') { $('status').textContent = text; $('status').className = `status ${type}`; }
-    function imageUrl(card, download = false) { return `${API_BASE_URL}${card.image_url}?admin_token=${encodeURIComponent(ADMIN_CODE)}${download ? '&download=1' : ''}`; }
+    function imageUrl(card, download = false) { return `${API_BASE_URL}${card.image_url}${download ? '?download=1' : ''}`; }
     function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
     function parseJsonResponse(text) {
       try {
@@ -96,7 +96,7 @@
       setStatus('Lade Karten...', '');
       const params = new URLSearchParams({ limit: '500' });
       if ($('statusFilter').value) params.set('status', $('statusFilter').value);
-      const response = await fetch(`${API_BASE_URL}/api/cards?${params}`, { headers: { 'X-Admin-Token': ADMIN_CODE } });
+      const response = await fetch(`${API_BASE_URL}/api/cards?${params}`);
       const text = await response.text();
       const data = parseJsonResponse(text);
       if (!response.ok) throw new Error(data.error || 'Karten konnten nicht geladen werden.');

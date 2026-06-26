@@ -417,13 +417,6 @@ async function handleSubmitCard(req, res) {
 }
 
 async function handleListCards(req, res) {
-  if (!isAdmin(req)) {
-    return sendJson(req, res, 401, {
-      ok: false,
-      error: "Admin token required."
-    });
-  }
-
   const url = new URL(req.url, `http://${req.headers.host}`);
   const status = url.searchParams.get("status") || "";
   const limitRaw = Number(url.searchParams.get("limit") || 100);
@@ -486,13 +479,6 @@ async function handleListCards(req, res) {
 }
 
 async function handleGetCardImage(req, res) {
-  if (!isAdmin(req)) {
-    return sendJson(req, res, 401, {
-      ok: false,
-      error: "Admin token required."
-    });
-  }
-
   const url = new URL(req.url, `http://${req.headers.host}`);
   const id = decodeURIComponent(url.pathname.slice("/api/cards/".length, -"/image".length));
 
