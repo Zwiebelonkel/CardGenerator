@@ -1248,7 +1248,6 @@
         generateJson(false);
       });
 
-      $("apiBaseUrl").addEventListener("input", saveApiBaseUrl);
 
       $("imageUpload").addEventListener("change", (event) => {
         const file = event.target.files[0];
@@ -1295,7 +1294,6 @@
       });
     }
 
-    loadApiBaseUrl();
     renderRarityButtons();
     renderEffectButtons();
     setupEvents();
