@@ -58,7 +58,7 @@ function sendJson(req, res, statusCode, data) {
   res.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
     "Access-Control-Allow-Origin": getCorsOrigin(req),
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Admin-Token",
     "Access-Control-Max-Age": "86400"
   });
@@ -93,7 +93,7 @@ function sendBinary(req, res, statusCode, data, headers = {}) {
 function sendOptions(req, res) {
   res.writeHead(204, {
     "Access-Control-Allow-Origin": getCorsOrigin(req),
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Admin-Token",
     "Access-Control-Max-Age": "86400"
   });
@@ -550,6 +550,57 @@ async function handleExportCards(req, res) {
   });
 }
 
+async function handleDeleteCard(req, res) {
+  if (!isAdmin(req)) {
+    return sendJson(req, res, 401, {
+      ok: false,
+      error: "Admin token required."
+    });
+  }
+
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const id = decodeURIComponent(url.pathname.slice("/api/cards/".length));
+
+  const existing = await db.execute({
+    sql: `
+      SELECT id
+      FROM card_submissions
+      WHERE id = ?
+    `,
+    args: [id]
+  });
+
+  if (!existing.rows[0]) {
+    return sendJson(req, res, 404, {
+      ok: false,
+      error: "Card not found."
+    });
+  }
+
+  await db.batch([
+    {
+      sql: `
+        DELETE FROM card_images
+        WHERE submission_id = ?
+      `,
+      args: [id]
+    },
+    {
+      sql: `
+        DELETE FROM card_submissions
+        WHERE id = ?
+      `,
+      args: [id]
+    }
+  ]);
+
+  return sendJson(req, res, 200, {
+    ok: true,
+    id,
+    deleted: true
+  });
+}
+
 async function handleUpdateStatus(req, res) {
   if (!isAdmin(req)) {
     return sendJson(req, res, 401, {
@@ -588,7 +639,7 @@ async function handleUpdateStatus(req, res) {
     });
   }
 
-  await db.execute({
+  const result = await db.execute({
     sql: `
       UPDATE card_submissions
       SET status = ?
@@ -596,6 +647,13 @@ async function handleUpdateStatus(req, res) {
     `,
     args: [status, id]
   });
+
+  if (result.rowsAffected === 0) {
+    return sendJson(req, res, 404, {
+      ok: false,
+      error: "Card not found."
+    });
+  }
 
   return sendJson(req, res, 200, {
     ok: true,
@@ -660,6 +718,15 @@ async function router(req, res) {
       pathname.endsWith("/status")
     ) {
       return await handleUpdateStatus(req, res);
+    }
+
+    if (
+      req.method === "DELETE" &&
+      pathname.startsWith("/api/cards/") &&
+      !pathname.endsWith("/image") &&
+      !pathname.endsWith("/status")
+    ) {
+      return await handleDeleteCard(req, res);
     }
 
     return sendJson(req, res, 404, {
