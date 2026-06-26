@@ -15,7 +15,10 @@
     .toolbar { display:grid; grid-template-columns:1fr 180px auto; gap:12px; align-items:end; padding:18px; margin:24px 0; }
     input, select, textarea { width:100%; border:1px solid var(--border); border-radius:12px; background:#090b11; color:var(--text); padding:11px 12px; font:inherit; outline:none; }
     button, a.button { display:inline-block; border:1px solid var(--border); background:var(--panel2); color:var(--text); border-radius:12px; padding:10px 13px; font-family:inherit; font-weight:800; cursor:pointer; text-decoration:none; }
+    button:disabled { cursor:not-allowed; opacity:.65; }
     .primary { background:linear-gradient(135deg, #39ff62, #4aa3ff); border:none; color:#041006; }
+    .danger { background:linear-gradient(135deg, #ff3b3b, #ff8a3b); border:none; color:#180404; }
+    .status-select { max-width:190px; }
     .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); gap:18px; }
     .panel { overflow:hidden; }
     .panel-header { padding:16px 18px; border-bottom:1px solid var(--border); background:rgba(255,255,255,.03); }
@@ -43,7 +46,7 @@
 </head>
 <body>
   <h1>Darkest Cards Admin</h1>
-  <div class="subtitle">Uploads ansehen, Karten-Preview prüfen, Bild herunterladen und den gespeicherten JSON-Block anzeigen.</div>
+  <div class="subtitle">Uploads ansehen, Karten-Preview prüfen, Status ändern, Karten löschen und den gespeicherten JSON-Block anzeigen.</div>
 
   <section class="toolbar">
     <div><label>Admin Code</label><input id="adminCode" type="password" inputmode="numeric" autocomplete="off" placeholder="1906" /></div>
@@ -71,6 +74,7 @@
       }
     }
     function parseCard(row) { try { return JSON.parse(row.raw_json); } catch { return {}; } }
+    function adminHeaders(extra = {}) { return { 'X-Admin-Token': $('adminCode').value.trim(), ...extra }; }
     function renderCard(row) {
       const card = parseCard(row);
       const color = rarityColors[card.rarity] || '#42D94A';
@@ -86,7 +90,12 @@
         </article></div>
         <div class="panel-body">
           <div class="meta">${escapeHtml(row.created_at)} · ${escapeHtml(row.image_filename || 'image')} · ${Number(row.image_size_bytes || 0).toLocaleString('de-DE')} Bytes</div>
-          <div class="actions"><a class="button primary" href="${escapeHtml(imageUrl(row, true))}">Bild herunterladen</a><button type="button" data-toggle="${escapeHtml(row.id)}">JSON anzeigen</button></div>
+          <div class="actions">
+            <a class="button primary" href="${escapeHtml(imageUrl(row, true))}">Bild herunterladen</a>
+            <label class="status-select">Status ändern<select data-status-id="${escapeHtml(row.id)}"><option value="pending" ${row.status === 'pending' ? 'selected' : ''}>Pending</option><option value="approved" ${row.status === 'approved' ? 'selected' : ''}>Approved</option><option value="rejected" ${row.status === 'rejected' ? 'selected' : ''}>Rejected</option></select></label>
+            <button type="button" data-toggle="${escapeHtml(row.id)}">JSON anzeigen</button>
+            <button class="danger" type="button" data-delete="${escapeHtml(row.id)}" data-name="${escapeHtml(card.name || row.card_name || row.id)}">Löschen</button>
+          </div>
           <textarea id="json-${escapeHtml(row.id)}" hidden readonly>${escapeHtml(JSON.stringify(card, null, 2))}</textarea>
         </div>
       </section>`;
@@ -104,8 +113,48 @@
       $('cards').innerHTML = data.cards.map(renderCard).join('');
       setStatus(`${data.cards.length} Karten geladen.`, 'ok');
     }
+
+    async function updateCardStatus(id, status) {
+      setStatus('Speichere Status...', '');
+      const response = await fetch(`${API_BASE_URL}/api/cards/${encodeURIComponent(id)}/status`, {
+        method: 'POST',
+        headers: adminHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ status })
+      });
+      const text = await response.text();
+      const data = parseJsonResponse(text);
+      if (!response.ok) throw new Error(data.error || 'Status konnte nicht geändert werden.');
+      setStatus(`Status wurde auf ${status} geändert.`, 'ok');
+      await loadCards();
+    }
+    async function deleteCard(id, name) {
+      if (!confirm(`Karte "${name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) return;
+      setStatus('Lösche Karte...', '');
+      const response = await fetch(`${API_BASE_URL}/api/cards/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: adminHeaders()
+      });
+      const text = await response.text();
+      const data = parseJsonResponse(text);
+      if (!response.ok) throw new Error(data.error || 'Karte konnte nicht gelöscht werden.');
+      setStatus('Karte wurde gelöscht.', 'ok');
+      await loadCards();
+    }
     $('loadBtn').addEventListener('click', () => loadCards().catch((error) => setStatus(error.message, 'bad')));
+    document.addEventListener('change', (event) => {
+      const id = event.target.dataset && event.target.dataset.statusId;
+      if (!id) return;
+      updateCardStatus(id, event.target.value).catch((error) => {
+        setStatus(error.message, 'bad');
+        loadCards().catch(() => {});
+      });
+    });
     document.addEventListener('click', (event) => {
+      const deleteId = event.target.dataset && event.target.dataset.delete;
+      if (deleteId) {
+        deleteCard(deleteId, event.target.dataset.name || deleteId).catch((error) => setStatus(error.message, 'bad'));
+        return;
+      }
       const id = event.target.dataset && event.target.dataset.toggle;
       if (!id) return;
       const textarea = $(`json-${id}`);
