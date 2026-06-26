@@ -434,12 +434,6 @@
       z-index: 4;
     }
 
-    .output-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-    }
-
     .output {
       min-height: 320px;
       white-space: pre;
@@ -461,8 +455,7 @@
         padding: 14px;
       }
 
-      .layout,
-      .output-grid {
+      .layout {
         grid-template-columns: 1fr;
       }
 
@@ -482,8 +475,8 @@
     <h1>Darkest Cards JSON Tool</h1>
 
     <div class="subtitle">
-      Karte ausfüllen, Rarity und Effects anklicken, Bild hochladen und den kompletten JSON-Block direkt an dein Render-Backend submitten.
-      Das Bild wird als <code>image_base64</code> im <code>raw_json</code> gespeichert.
+      Karte ausfüllen, Rarity und Effects anklicken, Bild hochladen und den JSON-Block der Karte direkt an dein Render-Backend submitten.
+      Im Karten-JSON steht nur der Link/Pfad; hochgeladene Bilder werden separat in der Datenbank gespeichert.
     </div>
 
     <main class="layout">
@@ -538,31 +531,10 @@
             <div id="effectButtons" class="effects-grid"></div>
           </div>
 
-          <div class="section-space">
-            <label>Bestehendes cards.json optional einfügen</label>
-            <textarea id="existingJson" placeholder='[
-  {
-    "id": "harald",
-    "name": "Harald",
-    "attack": 8,
-    "defense": 10,
-    "rarity": "epic",
-    "description": "...",
-    "image": "res://assets/cards/images/harald.png"
-  }
-]'></textarea>
-
-            <div class="hint">
-              Wenn du hier dein komplettes Cards-Array einfügst, wird die neue Karte automatisch angehängt.
-              Falls die ID schon existiert, wird diese Karte ersetzt.
-            </div>
-          </div>
-
           <div class="buttons">
             <button class="primary" id="generateBtn" type="button">JSON generieren</button>
             <button class="primary" id="submitBtn" type="button">Karte submitten</button>
             <button id="copyBlockBtn" type="button">Kartenblock kopieren</button>
-            <button id="copyFullBtn" type="button">Komplettes JSON kopieren</button>
             <button class="danger" id="resetBtn" type="button">Reset</button>
           </div>
 
@@ -620,7 +592,7 @@
           <input id="imageUpload" type="file" accept="image/*" />
 
           <div class="hint">
-            Das Bild wird für die Preview genutzt und beim Submit als Base64 im JSON gespeichert.
+            Das Bild wird für die Preview genutzt und beim Submit separat in der Datenbank gespeichert.
             Maximal 3 MB.
           </div>
         </div>
@@ -632,17 +604,8 @@
         </div>
 
         <div class="panel-body">
-          <div class="output-grid">
-            <div>
-              <label>Nur neuer Kartenblock</label>
-              <textarea id="singleOutput" class="output" readonly></textarea>
-            </div>
-
-            <div>
-              <label>Komplettes cards.json</label>
-              <textarea id="fullOutput" class="output" readonly></textarea>
-            </div>
-          </div>
+          <label>JSON-Block der Karte</label>
+          <textarea id="singleOutput" class="output" readonly></textarea>
         </div>
       </section>
     </main>
@@ -976,7 +939,8 @@
       return getSelectedEffectObjects().map((effect) => effect.name);
     }
 
-    function getCardObject() {
+    function getCardObject(options = {}) {
+      const includeUploadedImage = Boolean(options.includeUploadedImage);
       const card = {
         id: $("id").value.trim(),
         name: $("name").value.trim(),
@@ -993,7 +957,7 @@
         card.effects = selectedEffectOutputs;
       }
 
-      if (uploadedImageBase64) {
+      if (includeUploadedImage && uploadedImageBase64) {
         card.image_base64 = uploadedImageBase64;
         card.image_filename = uploadedImageFilename;
         card.image_mime = uploadedImageMime;
@@ -1016,22 +980,6 @@
       return errors;
     }
 
-    function parseExistingJson() {
-      const raw = $("existingJson").value.trim();
-
-      if (!raw) {
-        return [];
-      }
-
-      const parsed = JSON.parse(raw);
-
-      if (!Array.isArray(parsed)) {
-        throw new Error("Das bestehende cards.json muss ein Array sein.");
-      }
-
-      return parsed;
-    }
-
     function generateJson(showSuccess = true) {
       const card = getCardObject();
       const errors = validateCard(card);
@@ -1043,28 +991,8 @@
 
       $("singleOutput").value = JSON.stringify(card, null, 2);
 
-      try {
-        const cards = parseExistingJson();
-        const index = cards.findIndex((existingCard) => existingCard.id === card.id);
-
-        if (index >= 0) {
-          cards[index] = card;
-          $("fullOutput").value = JSON.stringify(cards, null, 2);
-
-          if (showSuccess) {
-            setStatus("Karte generiert. ID existierte schon und wurde im kompletten JSON ersetzt.", "ok");
-          }
-        } else {
-          cards.push(card);
-          $("fullOutput").value = JSON.stringify(cards, null, 2);
-
-          if (showSuccess) {
-            setStatus("Karte generiert und ans komplette JSON angehängt.", "ok");
-          }
-        }
-      } catch (error) {
-        $("fullOutput").value = "";
-        setStatus(error.message, "bad");
+      if (showSuccess) {
+        setStatus("JSON-Block der Karte wurde generiert.", "ok");
       }
     }
 
@@ -1119,7 +1047,7 @@
   }
 
 
-  const card = getCardObject();
+  const card = getCardObject({ includeUploadedImage: true });
   const errors = validateCard(card);
 
   if (errors.length > 0) {
@@ -1128,7 +1056,7 @@
   }
 
   if (!card.image_base64) {
-    setStatus("Bitte zuerst ein Bild hochladen. Es wird als Base64 submitted.", "bad");
+    setStatus("Bitte zuerst ein Bild hochladen. Es wird separat submitted.", "bad");
     return;
   }
 
@@ -1178,9 +1106,7 @@
       $("defense").value = "1";
       $("image").value = "res://assets/cards/images/";
       $("description").value = "";
-      $("existingJson").value = "";
       $("singleOutput").value = "";
-      $("fullOutput").value = "";
 
       selectedRarity = "common";
       selectedEffects = [];
@@ -1238,16 +1164,7 @@
         copyText($("singleOutput").value, "Kartenblock wurde kopiert.");
       });
 
-      $("copyFullBtn").addEventListener("click", () => {
-        copyText($("fullOutput").value, "Komplettes JSON wurde kopiert.");
-      });
-
       $("resetBtn").addEventListener("click", resetForm);
-
-      $("existingJson").addEventListener("input", () => {
-        generateJson(false);
-      });
-
 
       $("imageUpload").addEventListener("change", (event) => {
         const file = event.target.files[0];
@@ -1284,7 +1201,7 @@
           $("previewImage").style.display = "block";
           $("imagePlaceholder").style.display = "none";
 
-          setStatus("Bild wurde als Base64 vorbereitet.", "ok");
+          setStatus("Bild wurde für Preview und separaten Upload vorbereitet.", "ok");
 
           updatePreview();
           generateJson(false);
