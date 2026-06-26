@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Darkest Cards Admin</title>
+  <style>
+    @font-face { font-family: "VCR OSD Mono"; src: url("./assets/fonts/VCR_OSD_MONO_1.001.ttf") format("truetype"); font-display: swap; }
+    :root { --bg:#07080b; --panel:#151923; --panel2:#202638; --text:#f5f7ff; --muted:#9ca7bf; --border:#30384d; --red:#ff3b3b; --blue:#4aa3ff; --yellow:#ffe25c; --rarity-color:#42D94A; }
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100vh; background:radial-gradient(circle at top left, rgba(66,217,74,.15), transparent 35rem), var(--bg); color:var(--text); font-family:"VCR OSD Mono", monospace; padding:24px; }
+    h1 { margin:0 0 8px; font-size:clamp(2rem,5vw,3.5rem); line-height:1; text-shadow:0 0 20px rgba(66,217,74,.35); }
+    .subtitle, label, .meta { color:var(--muted); line-height:1.45; }
+    .toolbar, .panel { background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01)), var(--panel); border:1px solid var(--border); border-radius:18px; box-shadow:0 20px 70px rgba(0,0,0,.45); }
+    .toolbar { display:grid; grid-template-columns:1fr 180px auto; gap:12px; align-items:end; padding:18px; margin:24px 0; }
+    input, select, textarea { width:100%; border:1px solid var(--border); border-radius:12px; background:#090b11; color:var(--text); padding:11px 12px; font:inherit; outline:none; }
+    button, a.button { display:inline-block; border:1px solid var(--border); background:var(--panel2); color:var(--text); border-radius:12px; padding:10px 13px; font-family:inherit; font-weight:800; cursor:pointer; text-decoration:none; }
+    .primary { background:linear-gradient(135deg, #39ff62, #4aa3ff); border:none; color:#041006; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); gap:18px; }
+    .panel { overflow:hidden; }
+    .panel-header { padding:16px 18px; border-bottom:1px solid var(--border); background:rgba(255,255,255,.03); }
+    .panel-header h2 { margin:0; font-size:1.05rem; }
+    .panel-body { padding:18px; }
+    .preview-wrap { display:grid; place-items:center; padding:18px; background:linear-gradient(45deg, rgba(255,255,255,.025) 25%, transparent 25%), linear-gradient(-45deg, rgba(255,255,255,.025) 25%, transparent 25%); background-size:22px 22px; }
+    .card { width:300px; max-width:100%; aspect-ratio:.68/1; position:relative; overflow:hidden; border-radius:28px; border:5px solid var(--rarity-color); background:repeating-linear-gradient(135deg, rgba(255,255,255,.035) 0 8px, transparent 8px 20px), radial-gradient(circle at 50% 0%, rgba(255,255,255,.18), transparent 45%), #233327; box-shadow:0 0 0 2px rgba(255,255,255,.12) inset, 0 0 28px var(--rarity-color), 0 25px 80px rgba(0,0,0,.7); image-rendering:pixelated; }
+    .card::before { content:""; position:absolute; inset:0; background:linear-gradient(rgba(255,255,255,.05) 50%, rgba(0,0,0,.12) 50%); background-size:100% 4px; pointer-events:none; opacity:.7; z-index:5; }
+    .card-title { height:60px; display:grid; place-items:center; border-bottom:4px solid var(--rarity-color); font-size:1.45rem; font-weight:900; text-align:center; text-shadow:2px 2px 0 #000; padding:0 12px; position:relative; z-index:2; }
+    .image-box { width:72%; aspect-ratio:1.8/1; margin:18px auto 14px; border:3px solid var(--rarity-color); background:rgba(0,0,0,.28); overflow:hidden; position:relative; z-index:2; }
+    .image-box img { width:100%; height:100%; object-fit:cover; display:block; image-rendering:pixelated; }
+    .desc-box { border-top:4px solid var(--rarity-color); border-bottom:4px solid var(--rarity-color); min-height:185px; padding:14px 18px; position:relative; z-index:2; }
+    .desc-title { color:var(--yellow); font-size:1rem; font-weight:900; margin-bottom:10px; text-shadow:2px 2px 0 #000; }
+    .desc-text, .effects-text { font-size:.62rem; line-height:1.28; text-shadow:1px 1px 0 #000; overflow-wrap:anywhere; }
+    .effects-text { margin-top:16px; color:#72ffad; }
+    .stats { position:absolute; left:20px; right:20px; bottom:34px; display:flex; justify-content:space-between; align-items:end; z-index:3; }
+    .stat { text-align:center; font-weight:900; } .stat span { display:block; font-size:.75rem; text-shadow:2px 2px 0 #000; } .stat strong { display:block; font-size:2.6rem; line-height:.85; text-shadow:3px 3px 0 #000; }
+    .attack { color:var(--red); } .defense { color:var(--blue); }
+    .rarity-band { position:absolute; left:0; right:0; bottom:0; height:28px; display:grid; place-items:center; border-top:4px solid var(--rarity-color); font-weight:900; letter-spacing:.08em; text-transform:uppercase; text-shadow:2px 2px 0 #000; background:rgba(0,0,0,.2); z-index:4; }
+    textarea { min-height:230px; white-space:pre; font-size:.75rem; }
+    .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+    .status { margin-top:12px; min-height:22px; color:var(--muted); } .bad { color:#ff7777; } .ok { color:#42D94A; }
+    @media (max-width:760px) { body{padding:14px;} .toolbar{grid-template-columns:1fr;} .grid{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <h1>Darkest Cards Admin</h1>
+  <div class="subtitle">Uploads ansehen, Karten-Preview prüfen, Bild herunterladen und den gespeicherten JSON-Block anzeigen.</div>
+
+  <section class="toolbar">
+    <div><label>Admin Token</label><input id="token" type="password" autocomplete="current-password" /></div>
+    <div><label>Status</label><select id="statusFilter"><option value="">Alle</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></div>
+    <button id="loadBtn" class="primary" type="button">Laden</button>
+  </section>
+
+  <div id="status" class="status"></div>
+  <main id="cards" class="grid"></main>
+
+  <script>
+    const API_BASE_URL = location.origin;
+    const rarityColors = { common:'#8C8C8C', uncommon:'#42D94A', rare:'#3D7DFF', epic:'#B04DFF', legendary:'#FFC233', mythic:'#37207A', exotic:'#FF2222' };
+    const $ = (id) => document.getElementById(id);
+    function setStatus(text, type = '') { $('status').textContent = text; $('status').className = `status ${type}`; }
+    function imageUrl(card, download = false) { return `${API_BASE_URL}${card.image_url}?admin_token=${encodeURIComponent($('token').value)}${download ? '&download=1' : ''}`; }
+    function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+    function parseJsonResponse(text) {
+      try {
+        return JSON.parse(text);
+      } catch {
+        const preview = text.trim().slice(0, 120) || 'Leere Antwort';
+        throw new Error(`Server hat kein JSON zurückgegeben. Bitte /admin direkt auf dem API-Server öffnen. Antwort: ${preview}`);
+      }
+    }
+    function parseCard(row) { try { return JSON.parse(row.raw_json); } catch { return {}; } }
+    function renderCard(row) {
+      const card = parseCard(row);
+      const color = rarityColors[card.rarity] || '#42D94A';
+      const effects = Array.isArray(card.effects) ? card.effects.map((effect) => effect.type).join(', ') : '-';
+      return `<section class="panel" style="--rarity-color:${color}">
+        <div class="panel-header"><h2>${escapeHtml(card.name || row.card_name)} <span class="meta">${escapeHtml(row.status)}</span></h2></div>
+        <div class="preview-wrap"><article class="card">
+          <div class="card-title">${escapeHtml(card.name || 'Unnamed')}</div>
+          <div class="image-box"><img src="${escapeHtml(imageUrl(row))}" alt="${escapeHtml(card.name || 'Card image')}" /></div>
+          <div class="desc-box"><div class="desc-title">Description</div><div class="desc-text">${escapeHtml(card.description || '')}</div><div class="effects-text">Effects: ${escapeHtml(effects)}</div></div>
+          <div class="stats"><div class="stat attack"><span>Attack</span><strong>${escapeHtml(card.attack ?? 0)}</strong></div><div class="stat defense"><span>Defense</span><strong>${escapeHtml(card.defense ?? 0)}</strong></div></div>
+          <div class="rarity-band">${escapeHtml(card.rarity || row.rarity)}</div>
+        </article></div>
+        <div class="panel-body">
+          <div class="meta">${escapeHtml(row.created_at)} · ${escapeHtml(row.image_filename || 'image')} · ${Number(row.image_size_bytes || 0).toLocaleString('de-DE')} Bytes</div>
+          <div class="actions"><a class="button primary" href="${escapeHtml(imageUrl(row, true))}">Bild herunterladen</a><button type="button" data-toggle="${escapeHtml(row.id)}">JSON anzeigen</button></div>
+          <textarea id="json-${escapeHtml(row.id)}" hidden readonly>${escapeHtml(JSON.stringify(card, null, 2))}</textarea>
+        </div>
+      </section>`;
+    }
+    async function loadCards() {
+      if (!$('token').value) { setStatus('Admin Token fehlt.', 'bad'); return; }
+      setStatus('Lade Karten...', '');
+      const params = new URLSearchParams({ limit: '500' });
+      if ($('statusFilter').value) params.set('status', $('statusFilter').value);
+      const response = await fetch(`${API_BASE_URL}/api/cards?${params}`, { headers: { 'X-Admin-Token': $('token').value } });
+      const text = await response.text();
+      const data = parseJsonResponse(text);
+      if (!response.ok) throw new Error(data.error || 'Karten konnten nicht geladen werden.');
+      if (!Array.isArray(data.cards)) throw new Error('Server-Antwort enthält keine Kartenliste.');
+      $('cards').innerHTML = data.cards.map(renderCard).join('');
+      setStatus(`${data.cards.length} Karten geladen.`, 'ok');
+    }
+    $('loadBtn').addEventListener('click', () => loadCards().catch((error) => setStatus(error.message, 'bad')));
+    document.addEventListener('click', (event) => {
+      const id = event.target.dataset && event.target.dataset.toggle;
+      if (!id) return;
+      const textarea = $(`json-${id}`);
+      textarea.hidden = !textarea.hidden;
+      event.target.textContent = textarea.hidden ? 'JSON anzeigen' : 'JSON ausblenden';
+    });
+  </script>
+</body>
+</html>
