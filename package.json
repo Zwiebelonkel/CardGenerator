@@ -1,0 +1,12 @@
+{
+  "name": "darkest-cards-json-tool",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.15.15"
+  }
+}
