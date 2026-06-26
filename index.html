@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <title>Darkest Cards JSON Generator</title>
 
   <style>
@@ -21,11 +22,9 @@
       --text: #f5f7ff;
       --muted: #9ca7bf;
       --border: #30384d;
-
       --red: #ff3b3b;
       --blue: #4aa3ff;
       --yellow: #ffe25c;
-
       --rarity-color: #42D94A;
     }
 
@@ -63,7 +62,7 @@
       color: var(--muted);
       margin-bottom: 24px;
       line-height: 1.5;
-      max-width: 950px;
+      max-width: 1050px;
     }
 
     code {
@@ -483,8 +482,8 @@
     <h1>Darkest Cards JSON Tool</h1>
 
     <div class="subtitle">
-      Karte ausfüllen, Rarity und Effects anklicken, Preview prüfen und den fertigen JSON-Block direkt in deinen Code kopieren.
-      Die Font wird über <code>assets/fonts/VCR_OSD_MONO_1.001.ttf</code> geladen.
+      Karte ausfüllen, Rarity und Effects anklicken, Bild hochladen und den kompletten JSON-Block direkt an dein Render-Backend submitten.
+      Das Bild wird als <code>image_base64</code> im <code>raw_json</code> gespeichert.
     </div>
 
     <main class="layout">
@@ -519,7 +518,7 @@
             </div>
 
             <div class="full">
-              <label>Image-Pfad</label>
+              <label>Image-Pfad für Godot</label>
               <input id="image" value="res://assets/cards/images/wanderer.png" />
             </div>
 
@@ -540,6 +539,14 @@
           </div>
 
           <div class="section-space">
+            <label>Backend API URL</label>
+            <input id="apiBaseUrl" placeholder="https://dein-render-service.onrender.com" />
+            <div class="hint">
+              Wird im Browser gespeichert. Für GitHub Pages hier deine Render-URL eintragen.
+            </div>
+          </div>
+
+          <div class="section-space">
             <label>Bestehendes cards.json optional einfügen</label>
             <textarea id="existingJson" placeholder='[
   {
@@ -552,6 +559,7 @@
     "image": "res://assets/cards/images/harald.png"
   }
 ]'></textarea>
+
             <div class="hint">
               Wenn du hier dein komplettes Cards-Array einfügst, wird die neue Karte automatisch angehängt.
               Falls die ID schon existiert, wird diese Karte ersetzt.
@@ -560,6 +568,7 @@
 
           <div class="buttons">
             <button class="primary" id="generateBtn" type="button">JSON generieren</button>
+            <button class="primary" id="submitBtn" type="button">Karte submitten</button>
             <button id="copyBlockBtn" type="button">Kartenblock kopieren</button>
             <button id="copyFullBtn" type="button">Komplettes JSON kopieren</button>
             <button class="danger" id="resetBtn" type="button">Reset</button>
@@ -582,7 +591,7 @@
               <img id="previewImage" alt="Preview" />
               <div class="placeholder" id="imagePlaceholder">
                 Preview Image<br />
-                optional upload
+                required for submit
               </div>
             </div>
 
@@ -615,12 +624,12 @@
         </div>
 
         <div class="panel-body">
-          <label>Preview-Bild hochladen</label>
+          <label>Bild hochladen</label>
           <input id="imageUpload" type="file" accept="image/*" />
 
           <div class="hint">
-            Das Bild wird nur für die Preview verwendet. Im JSON bleibt dein Godot-Pfad wie
-            <code>res://assets/cards/images/name.png</code>.
+            Das Bild wird für die Preview genutzt und beim Submit als Base64 im JSON gespeichert.
+            Maximal 3 MB.
           </div>
         </div>
       </aside>
@@ -648,49 +657,16 @@
   </div>
 
   <script>
+    const DEFAULT_API_BASE_URL = "https://DEIN-RENDER-SERVICE.onrender.com";
+
     const rarities = [
-      {
-        id: "common",
-        name: "Common",
-        drop_weight: 60,
-        color: "#8C8C8C"
-      },
-      {
-        id: "uncommon",
-        name: "Uncommon",
-        drop_weight: 25,
-        color: "#42D94A"
-      },
-      {
-        id: "rare",
-        name: "Rare",
-        drop_weight: 9,
-        color: "#3D7DFF"
-      },
-      {
-        id: "epic",
-        name: "Epic",
-        drop_weight: 4,
-        color: "#B04DFF"
-      },
-      {
-        id: "legendary",
-        name: "Legendary",
-        drop_weight: 1.5,
-        color: "#FFC233"
-      },
-      {
-        id: "mythic",
-        name: "Mythic",
-        drop_weight: 0.4,
-        color: "#37207A"
-      },
-      {
-        id: "exotic",
-        name: "Exotic",
-        drop_weight: 0.1,
-        color: "#FF2222"
-      }
+      { id: "common", name: "Common", drop_weight: 60, color: "#8C8C8C" },
+      { id: "uncommon", name: "Uncommon", drop_weight: 25, color: "#42D94A" },
+      { id: "rare", name: "Rare", drop_weight: 9, color: "#3D7DFF" },
+      { id: "epic", name: "Epic", drop_weight: 4, color: "#B04DFF" },
+      { id: "legendary", name: "Legendary", drop_weight: 1.5, color: "#FFC233" },
+      { id: "mythic", name: "Mythic", drop_weight: 0.4, color: "#37207A" },
+      { id: "exotic", name: "Exotic", drop_weight: 0.1, color: "#FF2222" }
     ];
 
     const effects = [
@@ -698,234 +674,168 @@
         button_id: "armor_25",
         name: "Armor 25%",
         rarity: "common",
-        output: {
-          type: "armor",
-          value: 0.25
-        },
+        output: { type: "armor", value: 0.25 },
         description: "Reduziert Schaden um 25 %."
       },
       {
         button_id: "armor_50",
         name: "Armor 50%",
         rarity: "rare",
-        output: {
-          type: "armor",
-          value: 0.5
-        },
+        output: { type: "armor", value: 0.5 },
         description: "Reduziert Schaden um 50 %."
       },
       {
         button_id: "armor_75",
         name: "Armor 75%",
         rarity: "legendary",
-        output: {
-          type: "armor",
-          value: 0.75
-        },
+        output: { type: "armor", value: 0.75 },
         description: "Reduziert Schaden um 75 %."
       },
       {
         button_id: "regeneration",
         name: "Regeneration",
         rarity: "common",
-        output: {
-          type: "regeneration",
-          value: 3
-        },
+        output: { type: "regeneration", value: 3 },
         description: "Heilt sich jede Runde."
       },
       {
         button_id: "poison",
         name: "Poison",
         rarity: "common",
-        output: {
-          type: "poison",
-          damage: 3,
-          turns: 3
-        },
+        output: { type: "poison", damage: 3, turns: 3 },
         description: "Schaden über mehrere Runden."
       },
       {
         button_id: "lifesteal",
         name: "Lifesteal",
         rarity: "rare",
-        output: {
-          type: "lifesteal",
-          percent: 0.2
-        },
+        output: { type: "lifesteal", percent: 0.2 },
         description: "Heilt sich durch verursachten Schaden."
       },
       {
         button_id: "thorns",
         name: "Thorns",
         rarity: "rare",
-        output: {
-          type: "thorns",
-          percent: 0.25
-        },
+        output: { type: "thorns", percent: 0.25 },
         description: "Reflektiert Schaden."
       },
       {
         button_id: "cleave",
         name: "Cleave",
         rarity: "rare",
-        output: {
-          type: "cleave",
-          side_damage: 0.5
-        },
+        output: { type: "cleave", side_damage: 0.5 },
         description: "Trifft benachbarte Karten."
       },
       {
         button_id: "double_strike",
         name: "Double Strike",
         rarity: "epic",
-        output: {
-          type: "double_strike"
-        },
+        output: { type: "double_strike" },
         description: "Greift zweimal an."
       },
       {
         button_id: "stun",
         name: "Stun",
         rarity: "epic",
-        output: {
-          type: "stun",
-          chance: 1.0
-        },
+        output: { type: "stun", chance: 1.0 },
         description: "Ziel setzt nächsten Zug aus."
       },
       {
         button_id: "chain_attack",
         name: "Chain Attack",
         rarity: "epic",
-        output: {
-          type: "chain_attack"
-        },
+        output: { type: "chain_attack" },
         description: "Nach Kill weiteres Ziel angreifen."
       },
       {
         button_id: "triple_strike",
         name: "Triple Strike",
         rarity: "legendary",
-        output: {
-          type: "triple_strike",
-          hits: 3
-        },
+        output: { type: "triple_strike", hits: 3 },
         description: "Greift dreimal an."
       },
       {
         button_id: "last_stand",
         name: "Last Stand",
         rarity: "legendary",
-        output: {
-          type: "last_stand"
-        },
+        output: { type: "last_stand" },
         description: "Überlebt einmal mit 1 HP."
       },
       {
         button_id: "execute",
         name: "Execute",
         rarity: "legendary",
-        output: {
-          type: "execute",
-          threshold: 0.25
-        },
+        output: { type: "execute", threshold: 0.25 },
         description: "Zerstört Gegner unter HP-Grenze."
       },
       {
         button_id: "shield_first_hit",
         name: "Shield First Hit",
         rarity: "rare",
-        output: {
-          type: "shield_first_hit"
-        },
+        output: { type: "shield_first_hit" },
         description: "Erster Treffer macht keinen Schaden."
       },
       {
         button_id: "swarm_power",
         name: "Swarm Power",
         rarity: "exotic",
-        output: {
-          type: "swarm_power"
-        },
+        output: { type: "swarm_power" },
         description: "Skaliert mit gleichen Karten."
       },
       {
         button_id: "grave_return",
         name: "Grave Return",
         rarity: "exotic",
-        output: {
-          type: "grave_return"
-        },
+        output: { type: "grave_return" },
         description: "Wird einmal wiederbelebt."
       },
       {
         button_id: "deck_burn",
         name: "Deck Burn",
         rarity: "exotic",
-        output: {
-          type: "deck_burn",
-          amount: 1
-        },
+        output: { type: "deck_burn", amount: 1 },
         description: "Entfernt Karten aus Gegnerdeck."
       },
       {
         button_id: "draw_on_kill",
         name: "Draw On Kill",
         rarity: "rare",
-        output: {
-          type: "draw_on_kill"
-        },
+        output: { type: "draw_on_kill" },
         description: "Zieht Karte nach Kill."
       },
       {
         button_id: "curse",
         name: "Curse",
         rarity: "rare",
-        output: {
-          type: "curse",
-          value: 2
-        },
+        output: { type: "curse", value: 2 },
         description: "Senkt Angriff des Gegners."
       },
       {
         button_id: "swap_stats",
         name: "Swap Stats",
         rarity: "epic",
-        output: {
-          type: "swap_stats"
-        },
+        output: { type: "swap_stats" },
         description: "Tauscht Angriff und Defense."
       },
       {
         button_id: "random_damage",
         name: "Random Damage",
         rarity: "common",
-        output: {
-          type: "random_damage",
-          min: 0.75,
-          max: 1.25
-        },
+        output: { type: "random_damage", min: 0.75, max: 1.25 },
         description: "Schaden variiert zufällig."
       },
       {
         button_id: "bodyguard",
         name: "Bodyguard",
         rarity: "rare",
-        output: {
-          type: "bodyguard",
-          percent: 0.5
-        },
+        output: { type: "bodyguard", percent: 0.5 },
         description: "Übernimmt Schaden von Nachbarn."
       },
       {
         button_id: "neighbor_heal",
         name: "Neighbor Heal",
         rarity: "common",
-        output: {
-          type: "neighbor_heal",
-          value: 2
-        },
+        output: { type: "neighbor_heal", value: 2 },
         description: "Heilt benachbarte Karten."
       }
     ];
@@ -933,7 +843,25 @@
     let selectedRarity = "uncommon";
     let selectedEffects = [];
 
+    let uploadedImageBase64 = "";
+    let uploadedImageFilename = "";
+    let uploadedImageMime = "";
+    let uploadedImageSizeBytes = 0;
+
     const $ = (id) => document.getElementById(id);
+
+    function getApiBaseUrl() {
+      return $("apiBaseUrl").value.trim().replace(/\/$/, "");
+    }
+
+    function saveApiBaseUrl() {
+      localStorage.setItem("darkest_cards_api_base_url", getApiBaseUrl());
+    }
+
+    function loadApiBaseUrl() {
+      const saved = localStorage.getItem("darkest_cards_api_base_url");
+      $("apiBaseUrl").value = saved || DEFAULT_API_BASE_URL;
+    }
 
     function getRarity(id) {
       return rarities.find((rarity) => rarity.id === id) || rarities[0];
@@ -1082,6 +1010,13 @@
         card.effects = selectedEffectOutputs;
       }
 
+      if (uploadedImageBase64) {
+        card.image_base64 = uploadedImageBase64;
+        card.image_filename = uploadedImageFilename;
+        card.image_mime = uploadedImageMime;
+        card.image_size_bytes = uploadedImageSizeBytes;
+      }
+
       return card;
     }
 
@@ -1190,6 +1125,61 @@
       }
     }
 
+    async function submitCard() {
+      const apiBaseUrl = getApiBaseUrl();
+
+      if (!apiBaseUrl || apiBaseUrl.includes("DEIN-RENDER-SERVICE")) {
+        setStatus("Bitte zuerst deine echte Render API URL eintragen.", "bad");
+        return;
+      }
+
+      saveApiBaseUrl();
+
+      const card = getCardObject();
+      const errors = validateCard(card);
+
+      if (errors.length > 0) {
+        setStatus(errors.join(" "), "bad");
+        return;
+      }
+
+      if (!card.image_base64) {
+        setStatus("Bitte zuerst ein Bild hochladen. Es wird als Base64 submitted.", "bad");
+        return;
+      }
+
+      setStatus("Karte wird submitted...", "");
+
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/cards`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            card
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          const message = data.errors
+            ? data.errors.join(" ")
+            : data.error || "Submit fehlgeschlagen.";
+
+          throw new Error(message);
+        }
+
+        setStatus(
+          `Karte submitted: ${data.submission.card_name} (${data.submission.rarity})`,
+          "ok"
+        );
+      } catch (error) {
+        setStatus(error.message, "bad");
+      }
+    }
+
     function resetForm() {
       $("name").value = "";
       $("id").value = "";
@@ -1204,6 +1194,12 @@
       selectedRarity = "common";
       selectedEffects = [];
 
+      uploadedImageBase64 = "";
+      uploadedImageFilename = "";
+      uploadedImageMime = "";
+      uploadedImageSizeBytes = 0;
+
+      $("imageUpload").value = "";
       $("previewImage").style.display = "none";
       $("previewImage").src = "";
       $("imagePlaceholder").style.display = "block";
@@ -1245,6 +1241,8 @@
         generateJson(true);
       });
 
+      $("submitBtn").addEventListener("click", submitCard);
+
       $("copyBlockBtn").addEventListener("click", () => {
         copyText($("singleOutput").value, "Kartenblock wurde kopiert.");
       });
@@ -1259,25 +1257,54 @@
         generateJson(false);
       });
 
+      $("apiBaseUrl").addEventListener("input", saveApiBaseUrl);
+
       $("imageUpload").addEventListener("change", (event) => {
         const file = event.target.files[0];
 
         if (!file) {
+          uploadedImageBase64 = "";
+          uploadedImageFilename = "";
+          uploadedImageMime = "";
+          uploadedImageSizeBytes = 0;
+          return;
+        }
+
+        if (!file.type.startsWith("image/")) {
+          setStatus("Bitte nur Bilddateien hochladen.", "bad");
+          return;
+        }
+
+        const maxSizeBytes = 3 * 1024 * 1024;
+
+        if (file.size > maxSizeBytes) {
+          setStatus("Bild ist zu groß. Bitte maximal 3 MB hochladen.", "bad");
           return;
         }
 
         const reader = new FileReader();
 
         reader.onload = () => {
-          $("previewImage").src = reader.result;
+          uploadedImageBase64 = String(reader.result);
+          uploadedImageFilename = file.name;
+          uploadedImageMime = file.type;
+          uploadedImageSizeBytes = file.size;
+
+          $("previewImage").src = uploadedImageBase64;
           $("previewImage").style.display = "block";
           $("imagePlaceholder").style.display = "none";
+
+          setStatus("Bild wurde als Base64 vorbereitet.", "ok");
+
+          updatePreview();
+          generateJson(false);
         };
 
         reader.readAsDataURL(file);
       });
     }
 
+    loadApiBaseUrl();
     renderRarityButtons();
     renderEffectButtons();
     setupEvents();
