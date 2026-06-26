@@ -842,18 +842,9 @@
 
     const $ = (id) => document.getElementById(id);
 
-    function getApiBaseUrl() {
-      return $("apiBaseUrl").value.trim().replace(/\/$/, "");
-    }
-
-    function saveApiBaseUrl() {
-      localStorage.setItem("darkest_cards_api_base_url", getApiBaseUrl());
-    }
-
-    function loadApiBaseUrl() {
-      const saved = localStorage.getItem("darkest_cards_api_base_url");
-      $("apiBaseUrl").value = saved || DEFAULT_API_BASE_URL;
-    }
+  function getApiBaseUrl() {
+  return API_BASE_URL;
+}
 
     function getRarity(id) {
       return rarities.find((rarity) => rarity.id === id) || rarities[0];
@@ -1127,7 +1118,6 @@
     return;
   }
 
-  saveApiBaseUrl();
 
   const card = getCardObject();
   const errors = validateCard(card);
