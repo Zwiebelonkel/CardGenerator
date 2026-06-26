@@ -1,12 +1,13 @@
 import http from "node:http";
 import crypto from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { createClient } from "@libsql/client";
 
 const PORT = Number(process.env.PORT || 10000);
 
 const TURSO_DATABASE_URL = process.env.TURSO_DATABASE_URL;
 const TURSO_AUTH_TOKEN = process.env.TURSO_AUTH_TOKEN;
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "1906";
 
 const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
 
@@ -65,6 +66,30 @@ function sendJson(req, res, statusCode, data) {
   res.end(body);
 }
 
+function sendHtml(req, res, statusCode, html) {
+  res.writeHead(statusCode, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Access-Control-Allow-Origin": getCorsOrigin(req)
+  });
+
+  res.end(html);
+}
+
+function getContentType(pathname) {
+  if (pathname.endsWith(".ttf")) return "font/ttf";
+  if (pathname.endsWith(".html")) return "text/html; charset=utf-8";
+  return "application/octet-stream";
+}
+
+function sendBinary(req, res, statusCode, data, headers = {}) {
+  res.writeHead(statusCode, {
+    "Access-Control-Allow-Origin": getCorsOrigin(req),
+    ...headers
+  });
+
+  res.end(data);
+}
+
 function sendOptions(req, res) {
   res.writeHead(204, {
     "Access-Control-Allow-Origin": getCorsOrigin(req),
@@ -109,6 +134,28 @@ function readBody(req, maxBytes = 8_000_000) {
 
     req.on("error", reject);
   });
+}
+
+function parseImageDataUrl(dataUrl) {
+  const match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl || "");
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    mime: match[1],
+    buffer: Buffer.from(match[2], "base64")
+  };
+}
+
+function getSafeFilename(name, fallback = "card-image") {
+  const clean = String(name || "")
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  return clean || fallback;
 }
 
 function normalizeCardPayload(payload) {
@@ -209,6 +256,8 @@ function isAdmin(req) {
     return false;
   }
 
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const queryToken = url.searchParams.get("admin_token") || "";
   const auth = req.headers.authorization || "";
   const bearerToken = auth.startsWith("Bearer ")
     ? auth.slice("Bearer ".length)
@@ -216,7 +265,7 @@ function isAdmin(req) {
 
   const headerToken = req.headers["x-admin-token"] || "";
 
-  return bearerToken === ADMIN_TOKEN || headerToken === ADMIN_TOKEN;
+  return bearerToken === ADMIN_TOKEN || headerToken === ADMIN_TOKEN || queryToken === ADMIN_TOKEN;
 }
 
 async function migrate() {
@@ -246,6 +295,18 @@ async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_card_submissions_card_id
     ON card_submissions(card_id)
   `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS card_images (
+      submission_id TEXT PRIMARY KEY,
+      image BLOB NOT NULL,
+      mime_type TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      size_bytes INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (submission_id) REFERENCES card_submissions(id) ON DELETE CASCADE
+    )
+  `);
 }
 
 async function handleSubmitCard(req, res) {
@@ -272,6 +333,15 @@ async function handleSubmitCard(req, res) {
     });
   }
 
+  const imageData = parseImageDataUrl(card.image_base64);
+
+  if (!imageData) {
+    return sendJson(req, res, 400, {
+      ok: false,
+      errors: ["Uploaded image_base64 is required and must be a valid image data URL."]
+    });
+  }
+
   const normalizedCard = {
     ...card,
     id: card.id.trim(),
@@ -283,21 +353,10 @@ async function handleSubmitCard(req, res) {
     image: card.image.trim()
   };
 
-  if (card.image_base64) {
-    normalizedCard.image_base64 = card.image_base64;
-  }
-
-  if (card.image_filename) {
-    normalizedCard.image_filename = card.image_filename;
-  }
-
-  if (card.image_mime) {
-    normalizedCard.image_mime = card.image_mime;
-  }
-
-  if (card.image_size_bytes !== undefined) {
-    normalizedCard.image_size_bytes = Number(card.image_size_bytes);
-  }
+  delete normalizedCard.image_base64;
+  delete normalizedCard.image_filename;
+  delete normalizedCard.image_mime;
+  delete normalizedCard.image_size_bytes;
 
   const submissionId = crypto.randomUUID();
   const rawJson = JSON.stringify(normalizedCard, null, 2);
@@ -321,6 +380,26 @@ async function handleSubmitCard(req, res) {
       normalizedCard.rarity,
       rawJson,
       "pending"
+    ]
+  });
+
+  await db.execute({
+    sql: `
+      INSERT INTO card_images (
+        submission_id,
+        image,
+        mime_type,
+        filename,
+        size_bytes
+      )
+      VALUES (?, ?, ?, ?, ?)
+    `,
+    args: [
+      submissionId,
+      imageData.buffer,
+      card.image_mime || imageData.mime,
+      getSafeFilename(card.image_filename, `${normalizedCard.id}.png`),
+      imageData.buffer.length
     ]
   });
 
@@ -355,10 +434,21 @@ async function handleListCards(req, res) {
   if (status) {
     result = await db.execute({
       sql: `
-        SELECT id, card_id, card_name, rarity, raw_json, status, created_at
+        SELECT
+          card_submissions.id,
+          card_id,
+          card_name,
+          rarity,
+          raw_json,
+          status,
+          card_submissions.created_at,
+          card_images.mime_type AS image_mime,
+          card_images.filename AS image_filename,
+          card_images.size_bytes AS image_size_bytes
         FROM card_submissions
+        LEFT JOIN card_images ON card_images.submission_id = card_submissions.id
         WHERE status = ?
-        ORDER BY created_at DESC
+        ORDER BY card_submissions.created_at DESC
         LIMIT ?
       `,
       args: [status, limit]
@@ -366,9 +456,20 @@ async function handleListCards(req, res) {
   } else {
     result = await db.execute({
       sql: `
-        SELECT id, card_id, card_name, rarity, raw_json, status, created_at
+        SELECT
+          card_submissions.id,
+          card_id,
+          card_name,
+          rarity,
+          raw_json,
+          status,
+          card_submissions.created_at,
+          card_images.mime_type AS image_mime,
+          card_images.filename AS image_filename,
+          card_images.size_bytes AS image_size_bytes
         FROM card_submissions
-        ORDER BY created_at DESC
+        LEFT JOIN card_images ON card_images.submission_id = card_submissions.id
+        ORDER BY card_submissions.created_at DESC
         LIMIT ?
       `,
       args: [limit]
@@ -377,7 +478,50 @@ async function handleListCards(req, res) {
 
   return sendJson(req, res, 200, {
     ok: true,
-    cards: result.rows
+    cards: result.rows.map((row) => ({
+      ...row,
+      image_url: `/api/cards/${encodeURIComponent(row.id)}/image`
+    }))
+  });
+}
+
+async function handleGetCardImage(req, res) {
+  if (!isAdmin(req)) {
+    return sendJson(req, res, 401, {
+      ok: false,
+      error: "Admin token required."
+    });
+  }
+
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const id = decodeURIComponent(url.pathname.slice("/api/cards/".length, -"/image".length));
+
+  const result = await db.execute({
+    sql: `
+      SELECT image, mime_type, filename
+      FROM card_images
+      WHERE submission_id = ?
+    `,
+    args: [id]
+  });
+
+  const row = result.rows[0];
+
+  if (!row) {
+    return sendJson(req, res, 404, {
+      ok: false,
+      error: "Image not found."
+    });
+  }
+
+  const disposition = url.searchParams.get("download") === "1"
+    ? `attachment; filename="${getSafeFilename(row.filename)}"`
+    : `inline; filename="${getSafeFilename(row.filename)}"`;
+
+  return sendBinary(req, res, 200, Buffer.from(row.image), {
+    "Content-Type": row.mime_type || "application/octet-stream",
+    "Content-Disposition": disposition,
+    "Cache-Control": "private, max-age=60"
   });
 }
 
@@ -400,7 +544,7 @@ async function handleExportCards(req, res) {
         SELECT raw_json
         FROM card_submissions
         WHERE status = ?
-        ORDER BY created_at DESC
+        ORDER BY card_submissions.created_at DESC
       `,
       args: [status]
     });
@@ -408,7 +552,7 @@ async function handleExportCards(req, res) {
     result = await db.execute(`
       SELECT raw_json
       FROM card_submissions
-      ORDER BY created_at DESC
+      ORDER BY card_submissions.created_at DESC
     `);
   }
 
@@ -490,12 +634,34 @@ async function router(req, res) {
       });
     }
 
+    if (req.method === "GET" && pathname.startsWith("/assets/")) {
+      const assetUrl = new URL(`.${pathname}`, import.meta.url);
+      const asset = await readFile(assetUrl);
+      return sendBinary(req, res, 200, asset, {
+        "Content-Type": getContentType(pathname),
+        "Cache-Control": "public, max-age=31536000, immutable"
+      });
+    }
+
     if (req.method === "POST" && pathname === "/api/cards") {
       return await handleSubmitCard(req, res);
     }
 
     if (req.method === "GET" && pathname === "/api/cards") {
       return await handleListCards(req, res);
+    }
+
+    if (req.method === "GET" && pathname === "/admin") {
+      const html = await readFile(new URL("./admin.html", import.meta.url), "utf8");
+      return sendHtml(req, res, 200, html);
+    }
+
+    if (
+      req.method === "GET" &&
+      pathname.startsWith("/api/cards/") &&
+      pathname.endsWith("/image")
+    ) {
+      return await handleGetCardImage(req, res);
     }
 
     if (req.method === "GET" && pathname === "/api/cards/export") {
