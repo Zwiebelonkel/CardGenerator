@@ -1118,59 +1118,68 @@
     }
 
     async function submitCard() {
-      const apiBaseUrl = getApiBaseUrl();
+  setStatus("Submit-Button wurde geklickt...", "");
 
-      if (!apiBaseUrl || apiBaseUrl.includes("DEIN-RENDER-SERVICE")) {
-        setStatus("Bitte zuerst deine echte Render API URL eintragen.", "bad");
-        return;
-      }
+  const apiBaseUrl = getApiBaseUrl();
 
-      saveApiBaseUrl();
+  if (!apiBaseUrl || apiBaseUrl.includes("DEIN-RENDER-SERVICE")) {
+    setStatus("Bitte zuerst deine echte Render API URL eintragen.", "bad");
+    return;
+  }
 
-      const card = getCardObject();
-      const errors = validateCard(card);
+  saveApiBaseUrl();
 
-      if (errors.length > 0) {
-        setStatus(errors.join(" "), "bad");
-        return;
-      }
+  const card = getCardObject();
+  const errors = validateCard(card);
 
-      if (!card.image_base64) {
-        setStatus("Bitte zuerst ein Bild hochladen. Es wird als Base64 submitted.", "bad");
-        return;
-      }
+  if (errors.length > 0) {
+    setStatus(errors.join(" "), "bad");
+    return;
+  }
 
-      setStatus("Karte wird submitted...", "");
+  if (!card.image_base64) {
+    setStatus("Bitte zuerst ein Bild hochladen. Es wird als Base64 submitted.", "bad");
+    return;
+  }
 
-      try {
-        const response = await fetch(`${apiBaseUrl}/api/cards`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            card
-          })
-        });
+  setStatus("Karte wird an Render gesendet...", "");
 
-        const data = await response.json();
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/cards`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        card
+      })
+    });
 
-        if (!response.ok) {
-          const message = data.errors
-            ? data.errors.join(" ")
-            : data.error || "Submit fehlgeschlagen.";
+    let data = null;
 
-          throw new Error(message);
-        }
-
-        setStatus(
-          `Karte submitted: ${data.submission.card_name} (${data.submission.rarity})`,
-          "ok"
-        );
-      } catch (error) {
-        setStatus(error.message, "bad");
-      }
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error("Server hat keine gültige JSON-Antwort zurückgegeben.");
     }
+
+    if (!response.ok) {
+      const message = data.errors
+        ? data.errors.join(" ")
+        : data.error || "Submit fehlgeschlagen.";
+
+      throw new Error(message);
+    }
+
+    setStatus(
+      `Karte submitted: ${data.submission.card_name} (${data.submission.rarity})`,
+      "ok"
+    );
+  } catch (error) {
+    setStatus("Submit-Fehler: " + error.message, "bad");
+    console.error(error);
+  }
+}
 
     function resetForm() {
       $("name").value = "";
