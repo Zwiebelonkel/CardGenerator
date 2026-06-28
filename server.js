@@ -202,6 +202,42 @@ function validateCard(card) {
     errors.push("Card image path is required.");
   }
 
+  if (card.animated !== undefined && typeof card.animated !== "boolean") {
+    errors.push("Card animated must be a boolean.");
+  }
+
+  if (card.animated === true) {
+    const frameCount = Number(card.frame_count);
+    const frameColumns = Number(card.frame_columns);
+    const frameRows = Number(card.frame_rows);
+    const frameFps = Number(card.frame_fps);
+
+    if (!Number.isInteger(frameCount) || frameCount < 1) {
+      errors.push("Card frame_count must be an integer greater than 0.");
+    }
+
+    if (!Number.isInteger(frameColumns) || frameColumns < 1) {
+      errors.push("Card frame_columns must be an integer greater than 0.");
+    }
+
+    if (!Number.isInteger(frameRows) || frameRows < 1) {
+      errors.push("Card frame_rows must be an integer greater than 0.");
+    }
+
+    if (!Number.isFinite(frameFps) || frameFps <= 0) {
+      errors.push("Card frame_fps must be greater than 0.");
+    }
+
+    if (
+      Number.isInteger(frameCount) &&
+      Number.isInteger(frameColumns) &&
+      Number.isInteger(frameRows) &&
+      frameCount > frameColumns * frameRows
+    ) {
+      errors.push("Card frame_count cannot exceed frame_columns * frame_rows.");
+    }
+  }
+
   if (card.effects !== undefined) {
     if (!Array.isArray(card.effects)) {
       errors.push("Card effects must be an array.");

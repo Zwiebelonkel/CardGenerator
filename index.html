@@ -136,15 +136,28 @@
       font-size: .82rem;
     }
 
+    input[type="checkbox"] {
+      width: auto;
+      accent-color: var(--rarity-color);
+    }
+
     input:focus,
     textarea:focus {
       border-color: var(--rarity-color);
       box-shadow: 0 0 0 3px rgba(66, 217, 74, .14);
     }
 
-    .row {
+    .row,
+    .checkbox-row {
       display: flex;
       gap: 8px;
+    }
+
+    .checkbox-row {
+      align-items: center;
+      min-height: 44px;
+      color: var(--muted);
+      line-height: 1.35;
     }
 
     button {
@@ -513,6 +526,34 @@
             <div class="full">
               <label>Image-Pfad für Godot</label>
               <input id="image" value="res://assets/cards/images/wanderer.png" />
+            </div>
+
+            <div>
+              <label>Animated</label>
+              <label class="checkbox-row">
+                <input id="animated" type="checkbox" />
+                <span>Sprite-Sheet Animation aktivieren</span>
+              </label>
+            </div>
+
+            <div>
+              <label>Frame Count</label>
+              <input id="frame_count" type="number" value="2" min="1" step="1" />
+            </div>
+
+            <div>
+              <label>Frame Columns</label>
+              <input id="frame_columns" type="number" value="2" min="1" step="1" />
+            </div>
+
+            <div>
+              <label>Frame Rows</label>
+              <input id="frame_rows" type="number" value="1" min="1" step="1" />
+            </div>
+
+            <div>
+              <label>Frame FPS</label>
+              <input id="frame_fps" type="number" value="1" min="0.1" step="0.1" />
             </div>
 
             <div class="full">
@@ -951,6 +992,14 @@
         image: $("image").value.trim()
       };
 
+      if ($("animated").checked) {
+        card.animated = true;
+        card.frame_count = Number($("frame_count").value);
+        card.frame_columns = Number($("frame_columns").value);
+        card.frame_rows = Number($("frame_rows").value);
+        card.frame_fps = Number($("frame_fps").value);
+      }
+
       const selectedEffectOutputs = getSelectedEffectOutputs();
 
       if (selectedEffectOutputs.length > 0) {
@@ -976,6 +1025,16 @@
       if (!Number.isFinite(card.defense)) errors.push("Defense muss eine Zahl sein.");
       if (!card.description) errors.push("Description fehlt.");
       if (!card.image) errors.push("Image-Pfad fehlt.");
+
+      if (card.animated) {
+        if (!Number.isInteger(card.frame_count) || card.frame_count < 1) errors.push("Frame Count muss eine ganze Zahl ab 1 sein.");
+        if (!Number.isInteger(card.frame_columns) || card.frame_columns < 1) errors.push("Frame Columns muss eine ganze Zahl ab 1 sein.");
+        if (!Number.isInteger(card.frame_rows) || card.frame_rows < 1) errors.push("Frame Rows muss eine ganze Zahl ab 1 sein.");
+        if (!Number.isFinite(card.frame_fps) || card.frame_fps <= 0) errors.push("Frame FPS muss größer als 0 sein.");
+        if (Number.isInteger(card.frame_count) && Number.isInteger(card.frame_columns) && Number.isInteger(card.frame_rows) && card.frame_count > card.frame_columns * card.frame_rows) {
+          errors.push("Frame Count darf nicht größer als Columns × Rows sein.");
+        }
+      }
 
       return errors;
     }
@@ -1009,6 +1068,18 @@
       $("previewDefense").textContent = Number.isFinite(card.defense) ? card.defense : "0";
       $("previewDescription").textContent = card.description || "No description.";
       $("previewRarity").textContent = rarity.name.toUpperCase();
+
+      const previewImage = $("previewImage");
+      const imageBox = previewImage.closest(".image-box");
+      imageBox.classList.toggle("animated", Boolean(card.animated));
+
+      if (card.animated && Number.isFinite(card.frame_columns) && card.frame_columns > 0 && Number.isFinite(card.frame_rows) && card.frame_rows > 0) {
+        previewImage.style.width = `${card.frame_columns * 100}%`;
+        previewImage.style.height = `${card.frame_rows * 100}%`;
+      } else {
+        previewImage.style.width = "100%";
+        previewImage.style.height = "100%";
+      }
 
       $("previewEffects").textContent = effectNames.length > 0
         ? "Effects: " + effectNames.join(", ")
@@ -1106,6 +1177,11 @@
       $("defense").value = "1";
       $("image").value = "res://assets/cards/images/";
       $("description").value = "";
+      $("animated").checked = false;
+      $("frame_count").value = "2";
+      $("frame_columns").value = "2";
+      $("frame_rows").value = "1";
+      $("frame_fps").value = "1";
       $("singleOutput").value = "";
 
       selectedRarity = "common";
@@ -1129,7 +1205,7 @@
     }
 
     function setupEvents() {
-      ["name", "id", "attack", "defense", "image", "description"].forEach((id) => {
+      ["name", "id", "attack", "defense", "image", "description", "frame_count", "frame_columns", "frame_rows", "frame_fps"].forEach((id) => {
         $(id).addEventListener("input", () => {
           updatePreview();
           generateJson(false);
@@ -1144,6 +1220,11 @@
 
       $("id").addEventListener("input", () => {
         $("id").dataset.touched = "true";
+      });
+
+      $("animated").addEventListener("change", () => {
+        updatePreview();
+        generateJson(false);
       });
 
       $("autoIdBtn").addEventListener("click", () => {
