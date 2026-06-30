@@ -454,27 +454,51 @@
 
     .asset-studio {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 300px;
+      grid-template-columns: minmax(0, 1fr) 340px;
       gap: 16px;
       align-items: stretch;
     }
 
-    .piskel-frame-wrap {
-      min-height: 680px;
+    .piskel-launcher {
+      min-height: 420px;
       border: 1px solid var(--border);
       border-radius: 16px;
-      overflow: hidden;
-      background: #0b0d13;
+      padding: 24px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(66, 217, 74, .16), transparent 22rem),
+        repeating-linear-gradient(45deg, rgba(255,255,255,.035) 0 10px, transparent 10px 22px),
+        #0b0d13;
       box-shadow: inset 0 0 28px rgba(0,0,0,.45);
     }
 
-    .piskel-frame {
-      width: 100%;
-      height: 100%;
-      min-height: 680px;
-      border: 0;
-      display: block;
-      background: #111;
+    .piskel-launcher-content {
+      max-width: 680px;
+    }
+
+    .piskel-launcher h3 {
+      margin: 0 0 10px;
+      font-size: clamp(1.5rem, 4vw, 2.8rem);
+      text-shadow: 0 0 18px rgba(66, 217, 74, .28);
+    }
+
+    .piskel-launcher p {
+      color: var(--muted);
+      line-height: 1.55;
+      margin: 0 0 16px;
+    }
+
+    .piskel-warning {
+      margin-top: 14px;
+      border: 1px solid rgba(255, 226, 92, .45);
+      border-radius: 12px;
+      padding: 11px 12px;
+      color: #ffe25c;
+      background: rgba(255, 226, 92, .08);
+      font-size: .76rem;
+      line-height: 1.45;
     }
 
     .asset-actions {
@@ -701,21 +725,21 @@
         </div>
 
         <div class="panel-body asset-studio">
-          <div class="piskel-frame-wrap">
-            <iframe
-              id="piskelFrame"
-              class="piskel-frame"
-              title="Piskel Pixel-Art Editor"
-              src="https://www.piskelapp.com/p/create/sprite"
-              allow="clipboard-read; clipboard-write; fullscreen"
-              referrerpolicy="no-referrer"
-            ></iframe>
+          <div class="piskel-launcher">
+            <div class="piskel-launcher-content">
+              <h3>Piskel Asset Creator</h3>
+              <p>Starte Piskel in einem neuen Tab, erstelle dein Sprite oder Sprite-Sheet und importiere den Export anschließend direkt hier in die Karte.</p>
+              <button class="primary" id="openPiskelHeroBtn" type="button">Piskel starten</button>
+              <div class="piskel-warning">
+                Hinweis: Piskel blockiert aus Sicherheitsgründen die Einbettung in iframes. Deshalb öffnet das Tool Piskel in einem neuen Tab und übernimmt danach den exportierten Asset-Upload nahtlos.
+              </div>
+            </div>
           </div>
 
           <div class="asset-actions">
             <div class="asset-step">
               <strong>1. Pixel-Asset zeichnen</strong>
-              <p>Piskel ist direkt eingebettet. Erstelle dort dein Sprite oder deine Animation, ohne das Card-Tool zu verlassen.</p>
+              <p>Öffne Piskel im neuen Tab und erstelle dort dein Sprite oder deine Animation.</p>
             </div>
 
             <div class="asset-step">
@@ -732,8 +756,7 @@
             </div>
 
             <div class="buttons">
-              <button id="openPiskelBtn" type="button">Piskel in neuem Tab</button>
-              <button id="reloadPiskelBtn" type="button">Editor neu laden</button>
+              <button id="openPiskelBtn" type="button">Piskel öffnen</button>
             </div>
           </div>
         </div>
@@ -1407,14 +1430,13 @@
 
       $("resetBtn").addEventListener("click", resetForm);
 
-      $("openPiskelBtn").addEventListener("click", () => {
+      const openPiskel = () => {
         window.open(PISKEL_URL, "_blank", "noopener,noreferrer");
-      });
+        setStatus("Piskel wurde in einem neuen Tab geöffnet. Exportiere dein Asset und importiere es danach hier.", "ok");
+      };
 
-      $("reloadPiskelBtn").addEventListener("click", () => {
-        $("piskelFrame").src = PISKEL_URL;
-        setStatus("Piskel-Editor wurde neu geladen.", "ok");
-      });
+      $("openPiskelHeroBtn").addEventListener("click", openPiskel);
+      $("openPiskelBtn").addEventListener("click", openPiskel);
 
       $("piskelImport").addEventListener("change", (event) => {
         setUploadedImageFromFile(
